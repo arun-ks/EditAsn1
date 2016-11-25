@@ -16,27 +16,27 @@ Unprintable values are written in Hex, and are enclosed in Vx<...><br>
 
 ## Sample Output
 
->  $ ./EditAsn1 -d CDDEUD1AUTPT44999 | head -20
->  T<TransferBatch 61> L<0>
->  |---T<BatchControlInfo 64> L<0>
->  |   +---T<Sender 5F8144> L<5> V<DEUD1>
->  |   +---T<Recipient 5F8136> L<5> V<AUTPT>
->  |   +---T<FileSequenceNumber 5F6D> L<5> V<44298>
->  |   |---T<FileCreationTimeStamp 7F6C> L<0>
->  |   |   +---T<LocalTimeStamp 50> L<14> V<20121116170137>
->  |   |   +---T<UtcTimeOffset 5F8167> L<5> V<+0100>
->  |   |   +---N<Null 00>
->  |   |---T<TransferCutOffTimeStamp 7F8163> L<0>
->  |   |   +---T<LocalTimeStamp 50> L<14> V<20121116170137>
->  |   |   +---T<UtcTimeOffset 5F8167> L<5> V<+0100>
->  |   |   +---N<Null 00>
->  |   |---T<FileAvailableTimeStamp 7F6B> L<0>
->  |   |   +---T<LocalTimeStamp 50> L<14> V<20121116170137>
->  |   |   +---T<UtcTimeOffset 5F8167> L<5> V<+0100>
->  |   |   +---N<Null 00>
->  |   +---T<SpecificationVersionNumber 5F8149> L<1> Vx<03>
->  |   +---T<ReleaseVersionNumber 5F813D> L<1> Vx<0C>
->  |   |---T<OperatorSpecInfoList 7F8122> L<0>
+>  $ ./EditAsn1 -d CDDEUD1AUTPT44999 | head -20<br>
+>  T&lt;TransferBatch 61&gt; L&lt;0&gt;<br>
+>  |---T&lt;BatchControlInfo 64&gt; L&lt;0&gt;<br>
+>  |   +---T&lt;Sender 5F8144&gt; L&lt;5&gt; V&lt;DEUD1&gt;<br>
+>  |   +---T&lt;Recipient 5F8136&gt; L&lt;5&gt; V&lt;AUTPT&gt;<br>
+>  |   +---T&lt;FileSequenceNumber 5F6D&gt; L&lt;5&gt; V&lt;44298&gt;<br>
+>  |   |---T&lt;FileCreationTimeStamp 7F6C&gt; L&lt;0&gt;<br>
+>  |   |   +---T&lt;LocalTimeStamp 50&gt; L&lt;14&gt; V&lt;20121116170137&gt;<br>
+>  |   |   +---T&lt;UtcTimeOffset 5F8167&gt; L&lt;5&gt; V&lt;+0100&gt;<br>
+>  |   |   +---N&lt;Null 00&gt;<br>
+>  |   |---T&lt;TransferCutOffTimeStamp 7F8163&gt; L&lt;0&gt;<br>
+>  |   |   +---T&lt;LocalTimeStamp 50&gt; L&lt;14&gt; V&lt;20121116170137&gt;<br>
+>  |   |   +---T&lt;UtcTimeOffset 5F8167&gt; L&lt;5&gt; V&lt;+0100&gt;<br>
+>  |   |   +---N&lt;Null 00&gt;<br>
+>  |   |---T&lt;FileAvailableTimeStamp 7F6B&gt; L&lt;0&gt;<br>
+>  |   |   +---T&lt;LocalTimeStamp 50&gt; L&lt;14&gt; V&lt;20121116170137&gt;<br>
+>  |   |   +---T&lt;UtcTimeOffset 5F8167&gt; L&lt;5&gt; V&lt;+0100&gt;<br>
+>  |   |   +---N&lt;Null 00&gt;<br>
+>  |   +---T&lt;SpecificationVersionNumber 5F8149&gt; L&lt;1&gt; Vx&lt;03&gt;<br>
+>  |   +---T&lt;ReleaseVersionNumber 5F813D&gt; L&lt;1&gt; Vx&lt;0C&gt;<br>
+>  |   |---T&lt;OperatorSpecInfoList 7F8122&gt; L&lt;0&gt;<br>
 
 
 <br> <br>
