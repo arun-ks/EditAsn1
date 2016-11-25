@@ -11,35 +11,33 @@ Unprintable values are written in Hex, and are enclosed in Vx<...><br>
 
 <br>
 $ ./EditAsn1 <b>-d</b> CDDEUD1AUTPT44999 | head -20 <br>
-<p>
-T<TransferBatch 61> L<0>
-|---T<BatchControlInfo 64> L<0>
-|   +---T<Sender 5F8144> L<5> V<DEUD1>
-|   +---T<Recipient 5F8136> L<5> V<AUTPT>
-|   +---T<FileSequenceNumber 5F6D> L<5> V<44298>
-|   |---T<FileCreationTimeStamp 7F6C> L<0>
-|   |   +---T<LocalTimeStamp 50> L<14> V<20121116170137>
-|   |   +---T<UtcTimeOffset 5F8167> L<5> V<+0100>
-|   |   +---N<Null 00>
-|   |---T<TransferCutOffTimeStamp 7F8163> L<0>
-|   |   +---T<LocalTimeStamp 50> L<14> V<20121116170137>
-|   |   +---T<UtcTimeOffset 5F8167> L<5> V<+0100>
-|   |   +---N<Null 00>
-|   |---T<FileAvailableTimeStamp 7F6B> L<0>
-|   |   +---T<LocalTimeStamp 50> L<14> V<20121116170137>
-|   |   +---T<UtcTimeOffset 5F8167> L<5> V<+0100>
-|   |   +---N<Null 00>
-|   +---T<SpecificationVersionNumber 5F8149> L<1> Vx<03>
-|   +---T<ReleaseVersionNumber 5F813D> L<1> Vx<0C>
-|   |---T<OperatorSpecInfoList 7F8122> L<0>
-</p>
+T<TransferBatch 61> L<0><br>
+|---T<BatchControlInfo 64> L<0><br>
+|   +---T<Sender 5F8144> L<5> V<DEUD1><br>
+|   +---T<Recipient 5F8136> L<5> V<AUTPT><br>
+|   +---T<FileSequenceNumber 5F6D> L<5> V<44298><br>
+|   |---T<FileCreationTimeStamp 7F6C> L<0><br>
+|   |   +---T<LocalTimeStamp 50> L<14> V<20121116170137><br>
+|   |   +---T<UtcTimeOffset 5F8167> L<5> V<+0100><br>
+|   |   +---N<Null 00><br>
+|   |---T<TransferCutOffTimeStamp 7F8163> L<0><br>
+|   |   +---T<LocalTimeStamp 50> L<14> V<20121116170137><br>
+|   |   +---T<UtcTimeOffset 5F8167> L<5> V<+0100><br>
+|   |   +---N<Null 00><br>
+|   |---T<FileAvailableTimeStamp 7F6B> L<0><br>
+|   |   +---T<LocalTimeStamp 50> L<14> V<20121116170137><br>
+|   |   +---T<UtcTimeOffset 5F8167> L<5> V<+0100><br>
+|   |   +---N<Null 00><br>
+|   +---T<SpecificationVersionNumber 5F8149> L<1> Vx<03><br>
+|   +---T<ReleaseVersionNumber 5F813D> L<1> Vx<0C><br>
+|   |---T<OperatorSpecInfoList 7F8122> L<0><br>
 <br> <br>
 <p>
-If you want to edit a file,
-1.	Decode the file
-    /a1user1/a1/arcm/mobabp70/users/aruns/EditAsn1 -d CDDEUD1AUTPT44999 > _TextFile.
-2.	Edit _TextFile using vi, make sure you change ONLY the values (things inside V<> or Vx<>) & do not change the length of the values either.
-o	You can add/delete TAGs if you can take care of tag-lengths recursively. 
-3.	Encode the file /a1user1/a1/arcm/mobabp70/users/aruns/EditAsn1 -e _TextFile CDDEUD1AUTPT45000 
-4.	Verify everything is ok using /a1user1/a1/arcm/mobabp70/users/aruns/EditAsn1 -d CDDEUD1AUTPT45000
-</p>
+If you want to edit a file,<br>
+1.	Decode the file<br>
+    ./EditAsn1 -d CDDEUD1AUTPT44999 > _TextFile.<br>
+2.	Edit _TextFile using vi, make sure you change ONLY the values (things inside V<> or Vx<>) & do not change the length of the values either.<br>
+    2.1 You can add/delete TAGs if you can take care of tag-lengths recursively. <br>
+3.	Encode the file ./EditAsn1 -e _TextFile CDDEUD1AUTPT45000 <br>
+4.	Verify everything is ok using ./EditAsn1 -d CDDEUD1AUTPT45000<br>
+
