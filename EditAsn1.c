@@ -561,7 +561,8 @@ int  xxxx_GetPaddingLevel(TagInfo_t i_tagInfo, LenInfo_t i_lenInfo, int *o_paddi
 	int  l_UndefUcn2Close=0, l_UndefUcnFound=0, i;
 	char l_activityArray[28];
 
-	static char l_paddingString[XXXX_MAX_OPEN_NODES*XXXX_PAD_CHARS]={0};
+	static char l_paddingString[XXXX_MAX_OPEN_NODES*(XXXX_PAD_CHARS+1)]={0};
+
 	char l_padSubStr[XXXX_PAD_CHARS+1];
 
 
@@ -632,6 +633,7 @@ int  xxxx_GetPaddingLevel(TagInfo_t i_tagInfo, LenInfo_t i_lenInfo, int *o_paddi
 	/* Create the One-time Padding Pattern String */
 	if( l_paddingString[0]==0 )
 	{
+	     memset(l_paddingString, 0, XXXX_MAX_OPEN_NODES*(XXXX_PAD_CHARS+1));
 	     l_padSubStr[0]='|'; 
 	     memset(l_padSubStr+1,' ', XXXX_PAD_CHARS-1); 
 	     l_padSubStr[XXXX_PAD_CHARS]='\0';
