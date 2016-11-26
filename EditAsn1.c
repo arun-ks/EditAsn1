@@ -1,6 +1,7 @@
-/* 
-  This one expects INFILE & OUTFILE as its 2 arguments 
+/*
+  This one expects INFILE & OUTFILE as its 2 arguments
   INFILE is the output of osstlv
+  it also has code to Analyse Tag & Value fields 
 */
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,6 +17,9 @@ FILE *fpI, *fpO;
 int  xxxx_EXECinit(int i_argc, char *i_argv[]);
 int  xxxx_ParseAndBinarify(char *i_inRec, char *o_outBuf, int * o_bufLen);
 int  xxxx_EXECterm();
+int  xxxx_AnalyseTagValue( unsigned char *i_tagStr);
+int  xxxx_AnalyseLengthValue( unsigned char *i_lenStr);
+        
 
 
 int main(int argc, char *argv[]) {
@@ -48,6 +52,7 @@ int main(int argc, char *argv[]) {
             return XXXX_BAD;
         }
 
+        printf("\n\n Thanks \n");
 	return XXXX_GOOD;
 }
 
@@ -83,60 +88,122 @@ int xxxx_EXECterm()
 	return XXXX_GOOD;
 }
 
+#define PRINT_UNTILL_SPACE_OR_EOLN  { \
+               l_thisFieldIndex = 0; \
+               while ( i< l_inpStrLen -1  && i_inRec[i]!=' ' ) { \
+                  memcpy(l_next2BytesStr, i_inRec +i  , 2 ); \
+                  l_next2BytesLong = strtoul(l_next2BytesStr, (char **)NULL, 16)  ; \
+                  o_outBuf[*o_bufLen] = l_next2BytesLong ; \
+                  l_thisField[l_thisFieldIndex]= l_next2BytesLong; \
+                  printf("%s ", l_next2BytesStr );  \
+                  (*o_bufLen)++; \
+                  l_thisFieldIndex++; \
+                   i+=2; \
+               } \
+             }
 
-
-char triplet_name[5][10] = { "Tag", "Length", "Value", "Null", "Oops !"  };
 int xxxx_ParseAndBinarify(char *i_inRec, char *o_outBuf, int * o_bufLen)
 {
 	int  i;
         int l_inpStrLen, l_outStrLen;
-	int  l_tripletCounter;
 	char l_next2BytesStr[3]={ 0,0,0	};
         unsigned long l_next2BytesLong;
 
-        memset(l_next2BytesStr, 0, sizeof(l_next2BytesStr));
+        int l_thisFieldIndex; 
+        unsigned char l_thisField[XXXX_MAX_REC_LEN];
 
+        memset(l_next2BytesStr, 0, sizeof(l_next2BytesStr));
 	l_inpStrLen = strlen( i_inRec);
 	*o_bufLen = 0;
+
+        if(l_inpStrLen <=1 )  return XXXX_GOOD;
 
 	printf("\nRead Record : (%.*s) of %d\n", l_inpStrLen-1, i_inRec, l_inpStrLen );
 
 	/* Skip leading Blanks */
-	i=0;
-	while(i_inRec[i]==' ' && i < l_inpStrLen-1 ) i++;
-	if (i== l_inpStrLen)
-		return XXXX_GOOD;
+	for(i=0; i_inRec[i]==' ' && i < l_inpStrLen-1 ;i++);
+	if (i==l_inpStrLen) return XXXX_GOOD;
 
-        if ( i_inRec[i]=='0' &&  i_inRec[i+1]=='0' && i_inRec[i+3] == '0' && i_inRec[i+4] == '0' ) 
-                  l_tripletCounter = 3;
-        else
-	          l_tripletCounter = 0;
+        if ( i_inRec[i]=='0' &&  i_inRec[i+1]=='0' && i_inRec[i+3] == '0' && i_inRec[i+4] == '0' ) {
+              printf("  [NULL] : ") ;
 
-	printf("  Triplets [%s] : ", triplet_name[l_tripletCounter]);
+              PRINT_UNTILL_SPACE_OR_EOLN ; 
+              i++;
+              PRINT_UNTILL_SPACE_OR_EOLN ; 
 
-	while( i< l_inpStrLen -1)
-	{
-		l_next2BytesStr [0]= i_inRec[i];
-		l_next2BytesStr [1]= i_inRec[i+1];
-                l_next2BytesLong = strtoul(l_next2BytesStr, (char **)NULL, 16)  ; 
-                o_outBuf[*o_bufLen] = l_next2BytesLong ; 
+              return XXXX_GOOD;
+        }
 
-               printf("%s(%x)%d,", l_next2BytesStr, l_next2BytesLong, *o_bufLen );
-               (*o_bufLen)++;
 
-		i+=2;
+        printf("  Tag : ") ; 
+        PRINT_UNTILL_SPACE_OR_EOLN ; 
+        //xxxx_AnalyseTagValue( l_thisField );
+        i++;
 
-		if ( i_inRec[i]==' ')
-		{
-                        l_tripletCounter = ( l_tripletCounter !=3 ? l_tripletCounter+1 : 3 );
-                        if( l_tripletCounter < 3 )
-			  printf("  [%s] : ", triplet_name[l_tripletCounter]);
+        printf("  Len : ") ;
+        PRINT_UNTILL_SPACE_OR_EOLN;
+        xxxx_AnalyseLengthValue( l_thisField );
 
-			i++;
-			while(i_inRec[i]==' ' && i <= l_inpStrLen ) i++;
-		}
+        return XXXX_GOOD;
 
-	}
+        if( i == l_inpStrLen-1  ) return XXXX_GOOD;           
+        i++;
 
-	return XXXX_GOOD;
+        printf("  Val : ") ;
+        PRINT_UNTILL_SPACE_OR_EOLN;
+
+        return XXXX_GOOD;
+}
+
+char TagClassIdentifierNameArray[4][20] = { "Universal", "Application","Context Specific", "Private" };
+
+int  xxxx_AnalyseTagValue( unsigned char *i_tagStr) {
+  unsigned int retval_Tag;
+ 
+  retval_Tag =0;
+
+  printf ( "\tTag Class Id : %s, P/C %s , Tags in %s   ", 
+                 TagClassIdentifierNameArray[ ( *i_tagStr & 0xC0)>>6],  
+                 ((*i_tagStr & 0x20)>>5    ? "Constructed" : "Primitive" ),  
+                 ((*i_tagStr & 0x1F)==0x1F ? "Many Bytes " :"One Byte"   ));
+
+ if ( (*i_tagStr & 0x1F)!=0x1F )  {
+    retval_Tag = (*i_tagStr & 0x1F);
+ }
+ else
+ {
+   do {
+       i_tagStr ++;
+       retval_Tag = ( retval_Tag <<7 ) | ( *i_tagStr & 0x7F );
+   } while (  (*i_tagStr & 0x80 ) ) ;
+
+ }
+
+ return retval_Tag;
+}
+
+
+int  xxxx_AnalyseLengthValue( unsigned char *i_lenStr) {
+  unsigned int retval_Len; 
+  int i, l_bytesToRead;
+  
+ if ( *i_lenStr == 0x80 )  {
+    retval_Len = -1;
+ }
+ else
+   if ( (*i_lenStr & 0x7F)!=0x80 )  {
+      retval_Len = (*i_lenStr & 0x7F);
+   }
+   else
+   {
+     l_bytesToRead=( *i_lenStr & 0x7F ) ;
+     i_lenStr ++;
+
+     for ( i=0; i<l_bytesToRead;++i) {
+          retval_Len = ( retval_Len <<7 ) | ( *i_lenStr & 0x7F );
+     }
+   
+   }
+   
+ return retval_Len;
 }
