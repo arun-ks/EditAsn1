@@ -21,7 +21,7 @@ This application does not need OSS utilities & has been used extensively to edit
   $ cc EditAsn1.c -o EditAsn1
 ```
 
-## Usage
+## Command line options
 The application supports 4 options, just run the application without any parameter to see the options
 ```sh
 $ EditAsn1
@@ -32,10 +32,12 @@ Usage:
         Basic/Primitive Encode    : EditAsn1v15 -E <Ascii TLV File> <ASN.1 File>
 ```
 
-## How to Use it
+## How to Use it to Edit ASN.1 Files
 To edit the ASN.1 files, you need to the redirect out of decode to a file.
 This file can then be edited by "vi". This does means that the people editing must know a bit about tags & lengths.
-Ensure that you change ONLY the value tags (V<...> or Vx<...>)
+Ensure that you change ONLY the value tags (V<...> or Vx<...>) 
+
+**Note** The application does not recalculate lengths, so do not delete Tags-lengths-values & if edited, keep the length same as the original
 
 The edited file can then be given to the application which would write it as a ASN.1 file using the Encoding Options.
 
