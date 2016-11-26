@@ -1,7 +1,5 @@
 /********************************************************************
-  Fix all Core Dump creating loops for Decoding
-  Phase 1 functions for Encoding added
-  Added structure-array for Parameters
+ Can do EDIT of ASN.1 files ...
 ********************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
@@ -91,24 +89,26 @@ typedef enum { XXXX_MODE_SMART_DECODE_PRINT,XXXX_MODE_BASIC_DECODE_PRINT,
 typedef struct {
    ExecutionMode_t executionMode;
    char     commandArg[4];
+   char     modeDescription[50];
    int      minNumberOfParams;
    char     inputFileInd;
    char     outputFileInd;
    int      (*functionPtr)();
-   char     usageMessage[80];
+   char     usageArgListMessage[50];
 } CommandLineParams_t;
 
 CommandLineParams_t g_commandLineParams[] =
 {
- { XXXX_MODE_SMART_DECODE_PRINT,"-d",3,'Y','N',
-      xxxx_PROCdecodeAndPrint,"\n\tSmart Decode: %s %s <ASN.1 File>"},
- { XXXX_MODE_BASIC_DECODE_PRINT,"-D",3,'Y','N',
-      xxxx_PROCdecodeAndPrint,"\n\tBasic Decode: %s %s <ASN.1 File>"},
- { XXXX_MODE_SMART_ENCODE_WRITE,"-e",4,'Y','N',
-      xxxx_PROCencodeAndWrite,"\n\tSmart Encode: %s %s <Ascii TLV File> <ASN.1 File>"},
- { XXXX_MODE_BASIC_ENCODE_WRITE,"-E",4,'Y','N',
-      xxxx_PROCencodeAndWrite,"\n\tBasic Encode: %s %s <Ascii TLV File> <ASN.1 File>"},
- { XXXX_MODE_INVALID_MODE,"",0,'N','N', NULL,NULL}
+ { XXXX_MODE_SMART_DECODE_PRINT,"-d","Smart Decode",
+      3,'Y','N', xxxx_PROCdecodeAndPrint,"<ASN.1 File>"},
+ { XXXX_MODE_BASIC_DECODE_PRINT,"-D","Basic Decode",
+      3,'Y','N', xxxx_PROCdecodeAndPrint,"<ASN.1 File>"},
+ { XXXX_MODE_SMART_ENCODE_WRITE,"-e","Smart Encode",
+      4,'Y','Y', xxxx_PROCencodeAndWrite,"<Ascii TLV File> <ASN.1 File>"},
+ { XXXX_MODE_BASIC_ENCODE_WRITE,"-E","Basic Encode",
+      4,'Y','Y', xxxx_PROCencodeAndWrite,"<Ascii TLV File> <ASN.1 File>"},
+ { XXXX_MODE_INVALID_MODE,"","",
+      0,'N','N', NULL,NULL}
 };
 
 FILE    *fpI, *fpO;
@@ -156,15 +156,13 @@ int xxxx_EXECinit(int i_argc, char *i_argv[])
 	             g_cmdLineParamIndex = i;
         }
 
-	if( g_cmdLineParamIndex == XXXX_MODE_INVALID_MODE )
-	      return XXXX_BAD;
-
-	if(  g_commandLineParams[g_cmdLineParamIndex].minNumberOfParams > i_argc )
+	if( ( g_cmdLineParamIndex == XXXX_MODE_INVALID_MODE ) ||
+	    ( g_commandLineParams[g_cmdLineParamIndex].minNumberOfParams > i_argc ) )
         {
-		printf("\n Missing Arguments..\n Usage :");
+		printf("\nMissing/Wrong Arguments..\n\n Usage :\n");
                 for(i=0;(g_commandLineParams[i].functionPtr!=NULL);++i)
-                     printf(g_commandLineParams[i].usageMessage, i_argv[0]);
-		printf("\n");
+                     printf("\t%s : %s %s %s\n", g_commandLineParams[i].modeDescription, 
+			 i_argv[0], g_commandLineParams[i].commandArg, g_commandLineParams[i].usageArgListMessage);
 
 		return XXXX_BAD;
 	}
@@ -242,11 +240,11 @@ int xxxx_PROCdecodeAndPrint()
 		}
 		else
 		{
-  			printf("%sT<%s %03d> L<%d>  ", l_paddingString,
+  			printf("%sT<%s %s> L<%d>  ", l_paddingString,
 			   ( g_commandLineParams[g_cmdLineParamIndex].executionMode == 
 				      XXXX_MODE_SMART_DECODE_PRINT ) ? 
 			    g_asn1TagInfoArray[l_tagInfo.tagValue].tagName : "",
-			   l_tagInfo.tagValue, l_lenInfo.lenValue);
+			   l_tagInfo.tagBytes, l_lenInfo.lenValue);
 		}
 
 		if( l_tagInfo.tagType == XXXX_PRIMITIVE_TAG)
@@ -598,18 +596,19 @@ int     xxxx_PROCencodeAndWrite()
 	       l_tagLevel = (int) (l_readLinePos / XXXX_PAD_CHARS);
 	       l_typeOfInfoInLine =  l_lineReadFromFile[l_readLinePos - 1]; 
 
-	       printf("\n%s: Level %d,Type %c: ", 
-				 l_lineReadFromFile, l_tagLevel,l_typeOfInfoInLine);
+	       printf("\n%s  %02d %c:", l_lineReadFromFile, l_tagLevel,l_typeOfInfoInLine);
 
 	       if( l_lineReadFromFile[l_readLinePos - 1]=='N' ) 
 	       {
-		   rc = xxxx_writeHexBytesToFile("80");
+		   strcpy(l_tempStr,"0000");
+	           printf(" Null (%s)", l_tempStr);
+		   rc = xxxx_writeHexBytesToFile(l_tempStr);
 	           if(rc != XXXX_GOOD ) return rc;
                }
 
 	       if( l_lineReadFromFile[l_readLinePos - 1]=='T' ) 
 	       {
-	           /* Get Tag */
+	           /* Get Tag @ */
 	           rc = xxxx_GetTknPositionInString(l_lineReadFromFile,l_readLinePos,
 				     ' ', &l_readLinePos);
 	           l_startOfInfo=l_readLinePos+1;
@@ -619,15 +618,10 @@ int     xxxx_PROCencodeAndWrite()
 		   memcpy(l_tempStr,((char *) l_lineReadFromFile) + l_startOfInfo ,
 				     l_readLinePos - l_startOfInfo);
                    l_tempStr[l_readLinePos - l_startOfInfo] = 0;
-		   l_tempNum = atoi(l_tempStr);
 
-		   rc=xxxx_GetTagInHexBytes(l_tempNum, &l_tagInfo);
+	           printf(" Tag (%s)", l_tempStr);
+		   rc = xxxx_writeHexBytesToFile(l_tempStr);
 	           if(rc != XXXX_GOOD ) return rc;
-
-		   rc = xxxx_writeHexBytesToFile(l_tagInfo.tagBytes);
-	           if(rc != XXXX_GOOD ) return rc;
-
-	           printf(" Tag (%s)->(%s)", l_tempStr,l_tagInfo.tagBytes);
 
 	           /* Get Length */
 	           rc = xxxx_GetTknPositionInString(l_lineReadFromFile,l_readLinePos,
@@ -642,10 +636,9 @@ int     xxxx_PROCencodeAndWrite()
 		   rc=xxxx_GetLengthInHexBytes(l_tempNum, &l_lenInfo);
 	           if(rc != XXXX_GOOD ) return rc;
 
+	           printf(" Len :(%d-%s)", l_lenInfo.lenValue,l_lenInfo.lenBytes);
 		   rc = xxxx_writeHexBytesToFile(l_lenInfo.lenBytes);
 	           if(rc != XXXX_GOOD ) return rc;
-
-	           printf(" Len :(%s)->(%s)", l_tempStr,l_lenInfo.lenBytes);
 
 	           /* Get Value if any */
 	           rc = xxxx_GetTknPositionInString(l_lineReadFromFile,l_readLinePos,
@@ -663,10 +656,10 @@ int     xxxx_PROCencodeAndWrite()
 			rc = xxxx_GetContentInHexBytes(l_tempStr, l_typeOfContentInfo, &l_contentInfo);
 	                if(rc != XXXX_GOOD ) return rc;
 			
+	                printf(" Content :(%s)->(%s)", l_tempStr,l_contentInfo.contentBytes);
 		        rc = xxxx_writeHexBytesToFile(l_contentInfo.contentBytes);
 	                if(rc != XXXX_GOOD ) return rc;
 
-	                printf(" Content :(%s)->(%s)", l_tempStr,l_contentInfo.contentBytes);
 		    }
                 }
 
@@ -757,7 +750,7 @@ int  xxxx_GetLengthInHexBytes(int i_lenValue, LenInfo_t *o_lenInfo )
 {
 	unsigned char l_lenByte;
 	int  i,rc = XXXX_GOOD ;
-	int l_bytesReq, l_256sMuliple;
+	int l_bytesReq, l_256sMultiple;
 
 	o_lenInfo->lenValue = i_lenValue;
 	o_lenInfo->lenBytesCount=0;
@@ -787,9 +780,9 @@ int  xxxx_GetLengthInHexBytes(int i_lenValue, LenInfo_t *o_lenInfo )
 		}
 		else
 		{
-			l_256sMuliple = 1;
-			for(l_bytesReq=0; l_256sMuliple < i_lenValue ; l_bytesReq++)
-				l_256sMuliple *= 256;
+			l_256sMultiple = 1;
+			for(l_bytesReq=0; l_256sMultiple < i_lenValue ; l_bytesReq++)
+				l_256sMultiple *= 256;
 
 			l_lenByte = l_bytesReq;
 			l_lenByte |= 0x80;
@@ -903,17 +896,18 @@ int  xxxx_writeHexBytesToFile(char *i_hexByteString)
     l_lenOfOutputBuffer =  strlen(i_hexByteString)/2;
     l_byteStream[0]=NULL;
 
-    printf("=>(%s)%d",i_hexByteString,l_lenOfOutputBuffer);
-    return XXXX_GOOD;
+    printf("=>%d(",l_lenOfOutputBuffer);
 
     for(i=0;i< l_lenOfOutputBuffer;i++)
     {
 	 tmpStr[0]=i_hexByteString[2*i]; 
 	 tmpStr[1]=i_hexByteString[2*i+1]; 
 	 l_byteStream[i] = (unsigned char) strtoul(tmpStr,NULL,16);
-	 printf("%02X",l_byteStream[i]);
+	 printf("%02X",(unsigned char) l_byteStream[i]);
     }
-    rc = fwrite(l_byteStream, 1,l_lenOfOutputBuffer,fpO);
+    printf(")");
+
+    rc = fwrite(l_byteStream, l_lenOfOutputBuffer,1, fpO);
     if ( rc != l_lenOfOutputBuffer ) 
       rc= XXXX_BAD;
 
