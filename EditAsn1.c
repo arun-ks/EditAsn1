@@ -29,13 +29,12 @@ typedef enum { XXXX_UNIVERSAL_TAG, XXXX_APPLICATION_TAG,
 
 /*! Structure to hold details of Tag-names and tag-values when used for TAP3 */
 typedef struct {
-	char tagName[80];
+	char tagName[90];
 	TagClass_t tagClass;
 	TagType_t tagType;
 } Asn1TagInfo_t;
 
 #include "asn1TagInfo.h"     /* <== Definition of g_asn1TagInfoArray & XXXX_MAX_TAG_NUMBER */
-
 
 /*! Container structure holding all properties of tags read from the file */
 typedef struct {
@@ -107,14 +106,10 @@ typedef struct {
 
 CommandLineParams_t g_commandLineParams[] =
 {
- { XXXX_MODE_SMART_DECODE_PRINT,"-d","Smart Decode for TAP3",
-      3,'Y','N', xxxx_PROCdecodeAndPrint,"<ASN.1 File>"},
- { XXXX_MODE_BASIC_DECODE_PRINT,"-D","Basic/Primitive Decode",
-      3,'Y','N', xxxx_PROCdecodeAndPrint,"<ASN.1 File>"},
- { XXXX_MODE_SMART_ENCODE_WRITE,"-e","Smart Encode for TAP3",
-      4,'Y','Y', xxxx_PROCencodeAndWrite,"<Ascii TLV File> <ASN.1 File>"},
- { XXXX_MODE_BASIC_ENCODE_WRITE,"-E","Basic/Primitive Encode",
-      4,'Y','Y', xxxx_PROCencodeAndWrite,"<Ascii TLV File> <ASN.1 File>"},
+ { XXXX_MODE_SMART_DECODE_PRINT,"-d","Smart Decode", 3,'Y','N', xxxx_PROCdecodeAndPrint,"<ASN.1 File>"},
+ { XXXX_MODE_BASIC_DECODE_PRINT,"-D","Basic/Primitive Decode", 3,'Y','N', xxxx_PROCdecodeAndPrint,"<ASN.1 File>"},
+ { XXXX_MODE_SMART_ENCODE_WRITE,"-e","Smart Encode", 4,'Y','Y', xxxx_PROCencodeAndWrite,"<Ascii TLV File> <ASN.1 File>"},
+ { XXXX_MODE_BASIC_ENCODE_WRITE,"-E","Basic/Primitive Encode", 4,'Y','Y', xxxx_PROCencodeAndWrite,"<Ascii TLV File> <ASN.1 File>"},
  { XXXX_MODE_INVALID_MODE,"","",
       0,'N','N', NULL,NULL}
 };
@@ -746,6 +741,9 @@ int     xxxx_PROCencodeAndWrite()
 
 	       rc = xxxx_GetTknPositionInString(l_lineReadFromFile,l_readLinePos,'<', &l_readLinePos);
 	       if( rc != XXXX_GOOD ) return rc;
+#ifdef PRINTMORE
+               printf("  Encode Token found at %d ",l_readLinePos );
+#endif
 
 	       l_tagLevel = (int) (l_readLinePos / XXXX_PAD_CHARS);
 	       l_typeOfInfoInLine =  l_lineReadFromFile[l_readLinePos - 1]; 
@@ -760,27 +758,21 @@ int     xxxx_PROCencodeAndWrite()
 	       if( l_lineReadFromFile[l_readLinePos - 1]=='T' ) 
 	       {
 	           /* Get Tag */
-	           rc = xxxx_GetTknPositionInString(l_lineReadFromFile,l_readLinePos,
-				     ' ', &l_readLinePos);
+	           rc = xxxx_GetTknPositionInString(l_lineReadFromFile,l_readLinePos, ' ', &l_readLinePos);
 	           l_startOfInfo=l_readLinePos+1;
-	           rc = xxxx_GetTknPositionInString(l_lineReadFromFile,l_readLinePos,
-				     '>', &l_readLinePos);
+	           rc = xxxx_GetTknPositionInString(l_lineReadFromFile,l_readLinePos, '>', &l_readLinePos);
 
-		   memcpy(l_tempStr,((char *) l_lineReadFromFile) + l_startOfInfo ,
-				     l_readLinePos - l_startOfInfo);
+		   memcpy(l_tempStr,((char *) l_lineReadFromFile) + l_startOfInfo , l_readLinePos - l_startOfInfo);
                    l_tempStr[l_readLinePos - l_startOfInfo] = 0;
 
 		   rc = xxxx_writeHexBytesToFile(l_tempStr);
 	           if(rc != XXXX_GOOD ) return rc;
 
 	           /* Get Length */
-	           rc = xxxx_GetTknPositionInString(l_lineReadFromFile,l_readLinePos,
-				     '<', &l_readLinePos);
+	           rc = xxxx_GetTknPositionInString(l_lineReadFromFile,l_readLinePos, '<', &l_readLinePos);
 	           l_startOfInfo=l_readLinePos+1;
-	           rc = xxxx_GetTknPositionInString(l_lineReadFromFile,l_readLinePos,
-				     '>', &l_readLinePos);
-		   memcpy(l_tempStr,((char *) l_lineReadFromFile) + l_startOfInfo ,
-				     l_readLinePos - l_startOfInfo);
+	           rc = xxxx_GetTknPositionInString(l_lineReadFromFile,l_readLinePos, '>', &l_readLinePos);
+		   memcpy(l_tempStr,((char *) l_lineReadFromFile) + l_startOfInfo , l_readLinePos - l_startOfInfo);
                    l_tempStr[l_readLinePos - l_startOfInfo] = 0;
 		   l_tempNum = atoi(l_tempStr);
 		   rc=xxxx_GetLengthInHexBytes(l_tempNum, &l_lenInfo);
@@ -790,17 +782,14 @@ int     xxxx_PROCencodeAndWrite()
 	           if(rc != XXXX_GOOD ) return rc;
 
 	           /* Get Value if any */
-	           rc = xxxx_GetTknPositionInString(l_lineReadFromFile,l_readLinePos,
-				     '<', &l_readLinePos);
+	           rc = xxxx_GetTknPositionInString(l_lineReadFromFile,l_readLinePos, '<', &l_readLinePos);
 		   if(rc == XXXX_GOOD )
 		   {
 			l_typeOfContentInfo = ( l_lineReadFromFile[l_readLinePos-1] == 'x' ) ?
 			    XXXX_UNPRINTABLE_CONTENT : XXXX_PRINTABLE_CONTENT;
 	                l_startOfInfo=l_readLinePos+1;
-	                rc = xxxx_GetTknPositionInString(l_lineReadFromFile,l_readLinePos,
-			     '>', &l_readLinePos);
-		        memcpy(l_tempStr,((char *) l_lineReadFromFile) + l_startOfInfo ,
-			     l_readLinePos - l_startOfInfo);
+	                rc = xxxx_GetTknPositionInString(l_lineReadFromFile,l_readLinePos, '>', &l_readLinePos);
+		        memcpy(l_tempStr,((char *) l_lineReadFromFile) + l_startOfInfo , l_readLinePos - l_startOfInfo);
                         l_tempStr[l_readLinePos - l_startOfInfo] = 0;
 
 			rc = xxxx_GetContentInHexBytes(l_tempStr, l_typeOfContentInfo, &l_contentInfo);
@@ -808,11 +797,12 @@ int     xxxx_PROCencodeAndWrite()
 			
 		        rc = xxxx_writeHexBytesToFile(l_contentInfo.contentBytes);
 	                if(rc != XXXX_GOOD ) return rc;
-
 		  }
+                  else
+                           rc = XXXX_GOOD; 
                 }
 
-	} while( rc == 1 );
+	} while( rc == XXXX_GOOD );
 
 	return XXXX_GOOD;
 }
@@ -1069,5 +1059,7 @@ int  xxxx_writeHexBytesToFile(char *i_hexByteString)
 
     return XXXX_GOOD;
 }
+
+
 
 
