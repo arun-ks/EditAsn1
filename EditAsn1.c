@@ -1,5 +1,5 @@
 /********************************************************************
-                     ASN.1 File Viewer/Editor
+              Generic ASN.1 File Viewer/Editor
 	                                    Arun Sivanandan
 ********************************************************************/
 #include <stdio.h>
@@ -7,24 +7,27 @@
 #include <string.h>
 #include <ctype.h>
 
-#define XXXX_GOOD              0
-#define XXXX_BAD               -1
+/* Status Values */
+#define XXXX_GOOD              0     /*!< Indicates GOOD status of function  */
+#define XXXX_BAD               -1    /*!< Indicates BAD/error status of function  */
 #define XXXX_EOF               99
 #define XXXX_SOF               XXXX_GOOD
 
-#define XXXX_READ_BIN_BUFF_LEN 1000
-#define XXXX_READ_TXT_BUFF_LEN 1000
+#define XXXX_READ_BIN_BUFF_LEN 1000   /*!< Length of Buffer to read from ASN.1 file (for decoding) */
+#define XXXX_READ_TXT_BUFF_LEN 1000   /*!< Length of Buffer to read from Text file  (for encoding) */
 #define XXXX_MAX_CONTENT_LEN   1000
 #define XXXX_MAX_TAG_LEN       10
 #define XXXX_MAX_LEN_LEN       10
 #define XXXX_MAX_OPEN_NODES    30
 #define XXXX_PAD_CHARS         4
 
+/*! Basic classification of Tags as per ASN.1 specification */
 typedef enum { XXXX_INFO_TYPE_TAG, XXXX_DO_NO_SKIP_NULLS } InfoType_t;
 typedef enum { XXXX_PRIMITIVE_TAG, XXXX_CONSTRUCTED_TAG, XXXX_NULL_BYTE_TAG } TagType_t;
 typedef enum { XXXX_UNIVERSAL_TAG, XXXX_APPLICATION_TAG, 
 	       XXXX_CONTEXT_SPEC_TAG, XXXX_PRIVATE_TAG } TagClass_t;
 
+/*! Structure to hold details of Tag-names and tag-values when used for TAP3 */
 typedef struct {
 	char tagName[80];
 	TagClass_t tagClass;
@@ -33,6 +36,8 @@ typedef struct {
 
 #include "asn1TagInfo.h"     /* <== Definition of g_asn1TagInfoArray & XXXX_MAX_TAG_NUMBER */
 
+
+/*! Container structure holding all properties of tags read from the file */
 typedef struct {
 	unsigned int  tagValue;
 	char tagBytes[XXXX_MAX_TAG_LEN];
@@ -83,6 +88,8 @@ int     xxxx_GetContentInHexBytes(char *i_contentValue,ContentPrintableInd_t i_c
 			    ContentInfo_t *o_contentInfo);
 int     xxxx_writeHexBytesToFile(char *i_hexByteString);
 
+
+/*!< Modes if process execution */
 typedef enum { XXXX_MODE_SMART_DECODE_PRINT,XXXX_MODE_BASIC_DECODE_PRINT, 
        XXXX_MODE_SMART_ENCODE_WRITE,XXXX_MODE_BASIC_ENCODE_WRITE,
        XXXX_MODE_INVALID_MODE } ExecutionMode_t;
@@ -112,6 +119,7 @@ CommandLineParams_t g_commandLineParams[] =
       0,'N','N', NULL,NULL}
 };
 
+/** Global Variables */
 FILE    *fpI, *fpO;
 int     g_InpFileEofInd=XXXX_SOF;
 float   g_InputBytePos=0,g_InputLinesCount=0;
@@ -145,6 +153,8 @@ int main(int argc, char *argv[])
 
 /********************************************************************
 int xxxx_EXECinit(int i_argc, char *i_argv[])
+1. Parse & validates the command line parameters
+2. Open the input & output(if required) files.
 ********************************************************************/
 int xxxx_EXECinit(int i_argc, char *i_argv[])
 {
@@ -198,6 +208,7 @@ int xxxx_EXECinit(int i_argc, char *i_argv[])
 
 /********************************************************************
 int xxxx_EXECterm()
+1) Close all open files.
 ********************************************************************/
 int xxxx_EXECterm()
 {
@@ -586,7 +597,9 @@ int  xxxx_GetPaddingLevel(TagInfo_t i_tagInfo, LenInfo_t i_lenInfo, int *o_paddi
 				sprintf(l_activityArray,"%s-%02X", l_activityArray, 
 				    l_ucnl[l_unclosedNodesCount-1].ucnTagValue);
 				l_unclosedNodesCount--;
-				(*o_paddingLevel)--;
+                                /* Following IF is for 0 length composite tags which are the last element in a structure */
+                                if (!(i_lenInfo.lenType == XXXX_NULL_BYTE_LEN && i_tagInfo.tagType == XXXX_CONSTRUCTED_TAG)) 
+				    (*o_paddingLevel)--;
 			}
 			else
 				break;
@@ -594,8 +607,8 @@ int  xxxx_GetPaddingLevel(TagInfo_t i_tagInfo, LenInfo_t i_lenInfo, int *o_paddi
 
 	}
 
-	/* Push */
-	if( i_tagInfo.tagType == XXXX_CONSTRUCTED_TAG )
+	/* Push */ 
+	if( i_tagInfo.tagType == XXXX_CONSTRUCTED_TAG && i_lenInfo.lenType != XXXX_NULL_BYTE_LEN)  
 	{
 		l_ucnl[l_unclosedNodesCount].ucnTagValue = i_tagInfo.tagValue ;
 		l_ucnl[l_unclosedNodesCount].ucnLenType = i_lenInfo.lenType ;
@@ -616,7 +629,7 @@ int  xxxx_GetPaddingLevel(TagInfo_t i_tagInfo, LenInfo_t i_lenInfo, int *o_paddi
 	  g_InputBytePos,l_unclosedNodesCount, *o_paddingLevel );
 #endif
 
-	/* Create the Padding Pattern String */
+	/* Create the One-time Padding Pattern String */
 	if( l_paddingString[0]==0 )
 	{
 	     l_padSubStr[0]='|'; 
@@ -638,7 +651,7 @@ int  xxxx_GetPaddingLevel(TagInfo_t i_tagInfo, LenInfo_t i_lenInfo, int *o_paddi
 	memcpy(o_paddingStr, 
 	    l_paddingString + strlen(l_paddingString) - XXXX_PAD_CHARS * (*o_paddingLevel) ,
 	    XXXX_PAD_CHARS * (*o_paddingLevel) );
-        if(i_tagInfo.tagType == XXXX_CONSTRUCTED_TAG || (*o_paddingLevel)==1)
+        if( i_tagInfo.tagType == XXXX_CONSTRUCTED_TAG || (*o_paddingLevel)==1)
             o_paddingStr[(*o_paddingLevel-1) * XXXX_PAD_CHARS] = '|';
 
 	if ( l_unclosedNodesCount > XXXX_MAX_OPEN_NODES || l_unclosedNodesCount < 0 )
@@ -797,7 +810,7 @@ int     xxxx_PROCencodeAndWrite()
 		  }
                 }
 
-	} while( rc = 1 );
+	} while( rc == 1 );
 
 	return XXXX_GOOD;
 }
@@ -1054,3 +1067,5 @@ int  xxxx_writeHexBytesToFile(char *i_hexByteString)
 
     return XXXX_GOOD;
 }
+
+
