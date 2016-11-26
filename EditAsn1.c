@@ -245,10 +245,18 @@ int xxxx_PROCdecodeAndPrint()
 		}
 		else
 		{
-  		        printf("%sT<%s %s> L<%d> ", l_paddingString,
-			  ( g_commandLineParams[g_cmdLineParamIndex].executionMode == XXXX_MODE_SMART_DECODE_PRINT) ?
-			    g_asn1TagInfoArray[l_tagInfo.tagValue].tagName:"",
-			  l_tagInfo.tagBytes, l_lenInfo.lenValue);
+			if ( g_commandLineParams[g_cmdLineParamIndex].executionMode == XXXX_MODE_SMART_DECODE_PRINT)
+			{
+  		            printf("%sT<%s %s> L<%d> ", l_paddingString,
+			            g_asn1TagInfoArray[l_tagInfo.tagValue].tagName,
+			            l_tagInfo.tagBytes, l_lenInfo.lenValue);
+			}
+			else
+			{
+			    printf("%sT<%d %s> L<%d> ", l_paddingString,
+				    l_tagInfo.tagValue,
+				    l_tagInfo.tagBytes, l_lenInfo.lenValue);
+			}
 		}
 
 		if( l_tagInfo.tagType == XXXX_PRIMITIVE_TAG)
@@ -269,7 +277,59 @@ int xxxx_PROCdecodeAndPrint()
 }
 
 /********************************************************************
-int  xxxx_GetTagValue(TagInfo_t *o_tagInfo)
+Encoding of the Tag
+~~~~~~~~~~~~~~~~~~~
+The identifier octets encode the ASN.1 tag of the data value. 
+Two possibilities exist:
+1. single octet encoding for tag numbers from 0 to 30 (inclusive)
+                8   7   6   5   4   3   2   1
+              +-------+---+-------------------+
+            1 | CLASS |P/C|  NUMBER of TAG    |
+              +-------------------------------+
+
+               Bits 8-7: Class identifier:
+              +----------------------------+
+              |                Bit: 8   7  |
+              +----------------------------|
+              | Universal           0   0  |
+              | Application         0   1  |
+              | Context-specific    1   0  |
+              | Private             1   1  |
+              +----------------------------+
+               Bit  6  : Primitive (0) or
+                         Constructed (1)
+               Bits 5-1: binary integer with bit 5 as msb
+
+2. Use of a leading octet for tagnumbers bigger than or equal to 31
+The leading octet is encoded as follows:
+                8   7   6   5   4   3   2   1
+              +-------+---+---+---+---+---+---+
+            1 | CLASS |P/C| 1 | 1 | 1 | 1 | 1 |
+              +-------------------------------+
+
+               Bits 8-7: Class identifier as for single octet id
+               Bit  6  : Primitive (0) or
+                         Constructed (1)
+               Bits 5-1: all bits set to 1
+
+Subsequent octets are encoded as:
+                8   7   6   5   4   3   2   1
+              +---+---------------------------| first
+            2 | 1 |  NUMBER of TAG (msb)      | subsequent
+              +-------------------------------|
+              .                               .
+              .                               .
+              +-------------------------------| last
+              | 0 |  NUMBER of TAG (lsb)      | subsequent
+              +-------------------------------+
+
+               Bits 8 :  set to 1 in all non-last subsequent
+                         octets
+               Bits 7-1: Bits  7-1 of all subsequent octets
+                         encoded as a binary integer equal to
+                         the tagnumber with bit 7 of the first
+                         subsequent octet as most significant
+                         bit.
 ********************************************************************/
 int  xxxx_GetTagValue(TagInfo_t *o_tagInfo)
 {
@@ -324,7 +384,49 @@ int  xxxx_GetTagValue(TagInfo_t *o_tagInfo)
 }
 
 /********************************************************************
-int  xxxx_GetLengthValue(LenInfo_t *o_lenInfo )
+Encoding of the length
+~~~~~~~~~~~~~~~~~~~~~~
+The length octets encode the length of the following content of the data item. 
+Three possibilities exist in ASN.1: short, long and indefinite. 
+1. short length encoding for length from 0 to 127 (inclusive)
+                8   7   6   5   4   3   2   1
+              +-------------------------------|
+            1 | 0   L   L   L   L   L   L   L |
+              +-------------------------------+
+
+	LLLLLLL represents the length of the content
+
+2. long length encoding for length > 127
+                8   7   6   5   4   3   2   1
+              +---+---------------------------|
+            1 | 1 |      0 < n < 127          |
+              +-------------------------------+
+              +-------------------------------|
+            2 | L   L   L   L   L   L   L   L |
+              +-------------------------------+
+                           ...
+              +-------------------------------|
+           n+1| L   L   L   L   L   L   L   L |
+              +-------------------------------+
+
+	LLLLLLLL represents the length of the content
+
+3. Indefinate length encoding
+      The length is represnted with 1 byte containing the value 0x80
+                8   7   6   5   4   3   2   1
+              +---+---------------------------|
+            1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+              +-------------------------------+
+
+      In these cases, the content part is terminated with 2 consecutive NULLs like :
+                8   7   6   5   4   3   2   1
+              +---+---------------------------|
+            1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+              +-------------------------------+
+              +---+---------------------------|
+            2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+              +-------------------------------+
+
 ********************************************************************/
 int  xxxx_GetLengthValue(LenInfo_t *o_lenInfo )
 {
@@ -384,7 +486,25 @@ int  xxxx_GetLengthValue(LenInfo_t *o_lenInfo )
 }
 
 /********************************************************************
-int  xxxx_GetContentValue(int i_len, ContentInfo_t *o_contentInfo)
+Encoding of the content
+~~~~~~~~~~~~~~~~~~~~~~~
+The numbering of bits within one octet and the encoding of a binary
+ value in an octet structure can be found in the following figure:
+                8   7   6   5   4   3   2   1
+              +-------------------------------+
+              |  most significant byte        | octet 1
+              +-------------------------------+
+              |                               | octet 2
+              +-------------------------------+
+              .                               .
+              .                               .
+              +-------------------------------+
+              | least significant byte        | octet n
+              +-------------------------------+
+
+bit 8 of octet 1 is the most significant bit (msb)
+bit 1 of octet n is the least significant bit (lsb)
+
 ********************************************************************/
 int  xxxx_GetContentValue(int i_len, ContentInfo_t *o_contentInfo)
 {
@@ -496,6 +616,7 @@ int  xxxx_GetPaddingLevel(TagInfo_t i_tagInfo, LenInfo_t i_lenInfo, int *o_paddi
 	  g_InputBytePos,l_unclosedNodesCount, *o_paddingLevel );
 #endif
 
+	/* Create the Padding Pattern String */
 	if( l_paddingString[0]==0 )
 	{
 	     l_padSubStr[0]='|'; 
@@ -513,7 +634,7 @@ int  xxxx_GetPaddingLevel(TagInfo_t i_tagInfo, LenInfo_t i_lenInfo, int *o_paddi
              memcpy(l_paddingString+XXXX_PAD_CHARS*(i-1),l_padSubStr, XXXX_PAD_CHARS);
 	}
 
-
+        /* Create the Padding String for the current Tag */
 	memcpy(o_paddingStr, 
 	    l_paddingString + strlen(l_paddingString) - XXXX_PAD_CHARS * (*o_paddingLevel) ,
 	    XXXX_PAD_CHARS * (*o_paddingLevel) );
@@ -527,7 +648,8 @@ int  xxxx_GetPaddingLevel(TagInfo_t i_tagInfo, LenInfo_t i_lenInfo, int *o_paddi
 }
 
 /********************************************************************
-int   xxxx_readTheNextByte(unsigned char *o_nextByte, InfoType_t i_typeOfInfo )
+The function reads a big buffer from the file, each successive invocation,
+the function returns the next byte from the buffer.
 ********************************************************************/
 int   xxxx_readTheNextByte(unsigned char *o_nextByte, InfoType_t i_typeOfInfo )
 {
@@ -570,12 +692,11 @@ int   xxxx_readTheNextByte(unsigned char *o_nextByte, InfoType_t i_typeOfInfo )
 }
 
 /********************************************************************
-int     xxxx_PROCencodeAndWrite() 
 Accepts lines like :
    N<...
-   T<TagNameOrNull TagBytes> L<LenValue>
-   T<TagNameOrNull TagBytes> L<LenValue> V<ContentValue>
-   T<TagNameOrNull TagBytes> L<LenValue> Vx<ContentBytes>
+   T<TagNameOrTagValue TagBytes> L<LenValue>
+   T<TagNameOrTagValue TagBytes> L<LenValue> V<ContentValue>
+   T<TagNameOrTagValue TagBytes> L<LenValue> Vx<ContentBytes>
 ********************************************************************/
 int     xxxx_PROCencodeAndWrite()
 {
@@ -603,6 +724,10 @@ int     xxxx_PROCencodeAndWrite()
 
 	       rc=xxxx_readTheNextLine(l_lineReadFromFile, &l_readLineLen);
 	       if(rc != XXXX_GOOD ) return rc;
+  
+#ifdef PRINTMORE
+               printf("\nEncode read %s",l_lineReadFromFile );
+#endif
 
 	       rc = xxxx_GetTknPositionInString(l_lineReadFromFile,l_readLinePos,'<', &l_readLinePos);
 	       if( rc != XXXX_GOOD ) return rc;
@@ -678,7 +803,8 @@ int     xxxx_PROCencodeAndWrite()
 }
 
 /********************************************************************
-int    xxxx_GetTagInHexBytes(int i_tagValue, TagInfo_t *o_tagInfo)
+see Encoding logic in the comments for xxxx_GetTagValue function
+This function uses the reverse logic.
 ********************************************************************/
 int    xxxx_GetTagInHexBytes(int i_tagValue, TagInfo_t *o_tagInfo)
 {
@@ -754,7 +880,8 @@ int    xxxx_GetTagInHexBytes(int i_tagValue, TagInfo_t *o_tagInfo)
 
 
 /********************************************************************
-int  xxxx_GetLengthInHexBytes(int i_lenValue, LenInfo_t *o_lenInfo )
+see Encoding logic in the comments for xxxx_GetLengthValue function
+This function uses the reverse logic.
 ********************************************************************/
 int  xxxx_GetLengthInHexBytes(int i_lenValue, LenInfo_t *o_lenInfo )
 {
@@ -821,8 +948,8 @@ int  xxxx_GetLengthInHexBytes(int i_lenValue, LenInfo_t *o_lenInfo )
 }
 
 /********************************************************************
-int   xxxx_GetContentInHexBytes(char *i_contentValue,ContentPrintableInd_t i_contentPrintableInd,
-			    ContentInfo_t *o_contentInfo);
+see Encoding logic in the comments for xxxx_GetContentValue function
+This function uses the reverse logic.
 ********************************************************************/
 int   xxxx_GetContentInHexBytes(char *i_contentValue,ContentPrintableInd_t i_contentPrintableInd,
 			    ContentInfo_t *o_contentInfo)
@@ -840,7 +967,7 @@ int   xxxx_GetContentInHexBytes(char *i_contentValue,ContentPrintableInd_t i_con
 	}
 	else
 	{
-	   /* ToDo: Not populated : o_contentInfo->contentValue */
+	   /* TODO: Not populated : o_contentInfo->contentValue */
 	   strcpy(o_contentInfo->contentBytes,i_contentValue);
 	   o_contentInfo->contentBytesCount=strlen(i_contentValue);
 	}
@@ -876,7 +1003,9 @@ int            xxxx_readTheNextLine(char *o_lineRead, int *o_readLineLen)
 	return rc;
 }
 /********************************************************************
-int  xxxx_GetTknPositionInString(char *i_string,int i_strt,char i_tkn, int *o_tknPos)
+Returns the position of character <i_tkn> in the string <i_string> , 
+  starting from the position <i_strt>.
+If successful <o_tknPos> the the token's index, else its -1
 ********************************************************************/
 int  xxxx_GetTknPositionInString(char *i_string,int i_strt,char i_tkn, int *o_tknPos)
 {
@@ -907,12 +1036,17 @@ int  xxxx_writeHexBytesToFile(char *i_hexByteString)
     l_lenOfOutputBuffer =  strlen(i_hexByteString)/2;
     l_byteStream[0]=NULL;
 
+
     for(i=0;i< l_lenOfOutputBuffer;i++)
     {
 	 tmpStr[0]=i_hexByteString[2*i]; 
 	 tmpStr[1]=i_hexByteString[2*i+1]; 
 	 l_byteStream[i] = (unsigned char) strtoul(tmpStr,NULL,16);
     }
+
+#ifdef PRINTMORE
+               printf("  Encode wrote %d of (%s) ",i,  i_hexByteString );
+#endif
 
     rc = fwrite(l_byteStream, l_lenOfOutputBuffer,1, fpO);
     if ( rc != l_lenOfOutputBuffer ) 
