@@ -1,6 +1,3 @@
-/********************************************************************
- Can do EDIT of ASN.1 files ...
-********************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,7 +16,7 @@
 #define XXXX_MAX_OPEN_NODES    30
 #define XXXX_PAD_CHARS         4
 
-typedef enum { XXXX_INFO_TYPE_TAG,  XXXX_DO_NO_SKIP_NULLS } InfoType_t;
+typedef enum { XXXX_INFO_TYPE_TAG, XXXX_DO_NO_SKIP_NULLS } InfoType_t;
 typedef enum { XXXX_PRIMITIVE_TAG, XXXX_CONSTRUCTED_TAG, XXXX_NULL_BYTE_TAG } TagType_t;
 typedef enum { XXXX_UNIVERSAL_TAG, XXXX_APPLICATION_TAG, 
 	       XXXX_CONTEXT_SPEC_TAG, XXXX_PRIVATE_TAG } TagClass_t;
@@ -72,7 +69,7 @@ int     xxxx_readTheNextByte(unsigned char *o_nextByte, InfoType_t i_typeOfInfo 
 int     xxxx_GetTagValue(TagInfo_t *o_tagInfo);
 int     xxxx_GetLengthValue(LenInfo_t *o_lenInfo) ;
 int     xxxx_GetContentValue(int i_len, ContentInfo_t *o_contentInfo);
-int     xxxx_GetPaddingLevel(TagInfo_t i_tagInfo, LenInfo_t i_lenInfo,char *o_paddingStr);
+int     xxxx_GetPaddingLevel(TagInfo_t i_tagInfo, LenInfo_t i_lenInfo, int *o_paddingLevel, char *o_paddingStr);
 
 int     xxxx_PROCencodeAndWrite();
 int     xxxx_readTheNextLine(char *o_lineRead, int *o_lineLen);
@@ -84,8 +81,10 @@ int     xxxx_GetContentInHexBytes(char *i_contentValue,ContentPrintableInd_t i_c
 int     xxxx_writeHexBytesToFile(char *i_hexByteString);
 
 typedef enum { XXXX_MODE_SMART_DECODE_PRINT,XXXX_MODE_BASIC_DECODE_PRINT, 
+       XXXX_MODE_XML_DECODE_PRINT,
        XXXX_MODE_SMART_ENCODE_WRITE,XXXX_MODE_BASIC_ENCODE_WRITE,
        XXXX_MODE_INVALID_MODE } ExecutionMode_t;
+
 typedef struct {
    ExecutionMode_t executionMode;
    char     commandArg[4];
@@ -99,13 +98,15 @@ typedef struct {
 
 CommandLineParams_t g_commandLineParams[] =
 {
- { XXXX_MODE_SMART_DECODE_PRINT,"-d","Smart Decode",
+ { XXXX_MODE_SMART_DECODE_PRINT,"-d","Smart Decode for TAP3",
       3,'Y','N', xxxx_PROCdecodeAndPrint,"<ASN.1 File>"},
- { XXXX_MODE_BASIC_DECODE_PRINT,"-D","Basic Decode",
+ { XXXX_MODE_BASIC_DECODE_PRINT,"-D","Basic/Primitive Decode",
       3,'Y','N', xxxx_PROCdecodeAndPrint,"<ASN.1 File>"},
- { XXXX_MODE_SMART_ENCODE_WRITE,"-e","Smart Encode",
+ { XXXX_MODE_XML_DECODE_PRINT,"-x","XML Decode Print for TAP3",
+      3,'Y','N', xxxx_PROCdecodeAndPrint,"<ASN.1 File>"},
+ { XXXX_MODE_SMART_ENCODE_WRITE,"-e","Smart Encode for TAP3",
       4,'Y','Y', xxxx_PROCencodeAndWrite,"<Ascii TLV File> <ASN.1 File>"},
- { XXXX_MODE_BASIC_ENCODE_WRITE,"-E","Basic Encode",
+ { XXXX_MODE_BASIC_ENCODE_WRITE,"-E","Basic/Primitive Encode",
       4,'Y','Y', xxxx_PROCencodeAndWrite,"<Ascii TLV File> <ASN.1 File>"},
  { XXXX_MODE_INVALID_MODE,"","",
       0,'N','N', NULL,NULL}
@@ -150,18 +151,21 @@ int xxxx_EXECinit(int i_argc, char *i_argv[])
         int i;
 
 	g_cmdLineParamIndex = XXXX_MODE_INVALID_MODE;
-        for(i=0;(g_commandLineParams[i].functionPtr!=NULL); ++i) 
-        {
+	if ( i_argc >= 2 )
+	{
+            for(i=0;(g_commandLineParams[i].functionPtr!=NULL); ++i) 
+            {
                  if(!strcmp(g_commandLineParams[i].commandArg,i_argv[1])) 
 	             g_cmdLineParamIndex = i;
-        }
+            }
+	}
 
 	if( ( g_cmdLineParamIndex == XXXX_MODE_INVALID_MODE ) ||
 	    ( g_commandLineParams[g_cmdLineParamIndex].minNumberOfParams > i_argc ) )
         {
 		printf("\nMissing/Wrong Arguments..\n\n Usage :\n");
                 for(i=0;(g_commandLineParams[i].functionPtr!=NULL);++i)
-                     printf("\t%s : %s %s %s\n", g_commandLineParams[i].modeDescription, 
+                     printf("\t%-25s : %s %s %s\n", g_commandLineParams[i].modeDescription, 
 			 i_argv[0], g_commandLineParams[i].commandArg, g_commandLineParams[i].usageArgListMessage);
 
 		return XXXX_BAD;
@@ -217,6 +221,7 @@ int xxxx_PROCdecodeAndPrint()
 	ContentInfo_t   l_contentInfo;
 	int             rc=XXXX_GOOD;
 	char            l_paddingString[XXXX_MAX_OPEN_NODES*XXXX_PAD_CHARS];
+	int             l_paddingLevel;
 	char            l_tagInBytes[10];
 
 	while ( 1 )
@@ -229,31 +234,69 @@ int xxxx_PROCdecodeAndPrint()
                 if ( rc != XXXX_GOOD )
                         break;
 
-		rc = xxxx_GetPaddingLevel(l_tagInfo, l_lenInfo, l_paddingString);
+		rc = xxxx_GetPaddingLevel(l_tagInfo, l_lenInfo, &l_paddingLevel, l_paddingString);
 		if ( rc == XXXX_BAD )
 			break;
 
 		if( l_tagInfo.tagType == XXXX_NULL_BYTE_TAG && 
 		    l_lenInfo.lenType == XXXX_NULL_BYTE_LEN )
 		{
-			printf ("%sN<Null 00>", l_paddingString);
+			switch( g_commandLineParams[g_cmdLineParamIndex].executionMode )
+			{
+			      case XXXX_MODE_SMART_DECODE_PRINT :
+			      case XXXX_MODE_BASIC_DECODE_PRINT :
+			              printf ("%sN<Null 00>", l_paddingString);
+				      break;
+			      case XXXX_MODE_XML_DECODE_PRINT :
+			              printf ("%s", l_paddingString);
+				      break;
+		        }
 		}
 		else
 		{
-  			printf("%sT<%s %s> L<%d>  ", l_paddingString,
-			   ( g_commandLineParams[g_cmdLineParamIndex].executionMode == 
-				      XXXX_MODE_SMART_DECODE_PRINT ) ? 
-			    g_asn1TagInfoArray[l_tagInfo.tagValue].tagName : "",
-			   l_tagInfo.tagBytes, l_lenInfo.lenValue);
+			switch( g_commandLineParams[g_cmdLineParamIndex].executionMode )
+			{
+			      case XXXX_MODE_SMART_DECODE_PRINT :
+  			              printf("%sT<%s %s> L<%d %s>  ", l_paddingString,
+			                      g_asn1TagInfoArray[l_tagInfo.tagValue].tagName,
+			                      l_tagInfo.tagBytes, l_lenInfo.lenValue, l_lenInfo.lenBytes);
+				      break;
+			      case XXXX_MODE_BASIC_DECODE_PRINT :
+  			              printf("%sT<%s %s> L<%d>  ", l_paddingString,
+			                      "",
+			                      l_tagInfo.tagBytes, l_lenInfo.lenValue );
+				      break;
+			      case XXXX_MODE_XML_DECODE_PRINT :
+			              printf ("%s<%s>", l_paddingString, 
+					       g_asn1TagInfoArray[l_tagInfo.tagValue].tagName);
+				      break;
+		        }
 		}
 
 		if( l_tagInfo.tagType == XXXX_PRIMITIVE_TAG)
 		{
 			rc = xxxx_GetContentValue(l_lenInfo.lenValue, &l_contentInfo );
-			if( l_contentInfo.contentPrintableInd == XXXX_PRINTABLE_CONTENT )
-				printf("V<%s>", l_contentInfo.contentValue);
-			else
-				printf("Vx<%s>", l_contentInfo.contentBytes );
+                        if ( rc == XXXX_BAD )
+			      break;
+
+			switch( g_commandLineParams[g_cmdLineParamIndex].executionMode )
+			{
+			      case XXXX_MODE_SMART_DECODE_PRINT :
+			      case XXXX_MODE_BASIC_DECODE_PRINT :
+			              if( l_contentInfo.contentPrintableInd == XXXX_PRINTABLE_CONTENT )
+				              printf("V<%s>", l_contentInfo.contentValue);
+			              else
+				             printf("Vx<%s>", l_contentInfo.contentBytes );
+				      break;
+			      case XXXX_MODE_XML_DECODE_PRINT :
+			              if( l_contentInfo.contentPrintableInd == XXXX_PRINTABLE_CONTENT )
+				             printf(" %s </%s>", l_contentInfo.contentValue , 
+						  g_asn1TagInfoArray[l_tagInfo.tagValue].tagName);
+			              else
+				             printf(" 0x%s </%s>", l_contentInfo.contentBytes , 
+						  g_asn1TagInfoArray[l_tagInfo.tagValue].tagName);
+				      break;
+			}
 		}
 		printf("\n");
 	}
@@ -386,6 +429,13 @@ int  xxxx_GetContentValue(int i_len, ContentInfo_t *o_contentInfo)
 
 	o_contentInfo->contentPrintableInd = XXXX_PRINTABLE_CONTENT;
 	o_contentInfo->contentBytesCount = 0;
+
+	if ( i_len > XXXX_MAX_CONTENT_LEN )
+	{
+		printf("Content Len Too Big its %d, max allowed is %d \n", i_len, XXXX_MAX_CONTENT_LEN);
+		return XXXX_BAD;
+	}
+
 	for(i=1; i<=i_len; i++)
 	{
 		xxxx_readTheNextByte(&l_valueChar, XXXX_DO_NO_SKIP_NULLS);
@@ -394,7 +444,7 @@ int  xxxx_GetContentValue(int i_len, ContentInfo_t *o_contentInfo)
 		o_contentInfo->contentBytesCount++;
 
 		o_contentInfo->contentValue[l_contentValueBytePos++] = l_valueChar;
-		if (!isprint(l_valueChar) )
+		if (!isprint(l_valueChar) || l_valueChar == '<' || l_valueChar == '>' )
 			o_contentInfo->contentPrintableInd = XXXX_UNPRINTABLE_CONTENT;
 
 	}
@@ -406,9 +456,9 @@ int  xxxx_GetContentValue(int i_len, ContentInfo_t *o_contentInfo)
 }
 
 /********************************************************************
-int  xxxx_GetPaddingLevel(TagInfo_t i_tagInfo, LenInfo_t i_lenInfo, char *o_paddingStr)
+int  xxxx_GetPaddingLevel(TagInfo_t i_tagInfo, LenInfo_t i_lenInfo, int *o_paddingLevel, char *o_paddingStr )
 ********************************************************************/
-int  xxxx_GetPaddingLevel(TagInfo_t i_tagInfo, LenInfo_t i_lenInfo, char *o_paddingStr)
+int  xxxx_GetPaddingLevel(TagInfo_t i_tagInfo, LenInfo_t i_lenInfo, int *o_paddingLevel, char *o_paddingStr )
 {
 	static UnclosedNodesInfo_t l_ucnl[XXXX_MAX_OPEN_NODES];
 	static int l_unclosedNodesCount=0, rc= XXXX_GOOD;
@@ -418,10 +468,9 @@ int  xxxx_GetPaddingLevel(TagInfo_t i_tagInfo, LenInfo_t i_lenInfo, char *o_padd
 
 	static char l_paddingString[XXXX_MAX_OPEN_NODES*XXXX_PAD_CHARS]={0};
 	char l_padSubStr[XXXX_PAD_CHARS+1];
-	int l_paddingLevel;
 
 
-	l_paddingLevel = l_unclosedNodesCount;
+	*o_paddingLevel = l_unclosedNodesCount;
 	memset(o_paddingStr, 0, XXXX_MAX_OPEN_NODES*XXXX_PAD_CHARS);
 
 	memset(l_activityArray,0, sizeof(l_activityArray));
@@ -453,7 +502,7 @@ int  xxxx_GetPaddingLevel(TagInfo_t i_tagInfo, LenInfo_t i_lenInfo, char *o_padd
 				sprintf(l_activityArray,"%s-%02X", l_activityArray, 
 				    l_ucnl[l_unclosedNodesCount-1].ucnTagValue);
 				l_unclosedNodesCount--;
-				(l_paddingLevel)--;
+				(*o_paddingLevel)--;
 			}
 			else
 				break;
@@ -478,38 +527,67 @@ int  xxxx_GetPaddingLevel(TagInfo_t i_tagInfo, LenInfo_t i_lenInfo, char *o_padd
 	}
 
 #ifdef PRINTMORE
-	printf("%05.f %2d %2d :", g_InputBytePos,l_unclosedNodesCount, l_paddingLevel );
-	// printf("%18s %05.f %2d %2d :",l_activityArray,
-	//   g_InputBytePos,l_unclosedNodesCount, l_paddingLevel );
+        //printf("%05.f %2d %2d :", g_InputBytePos,l_unclosedNodesCount, *o_paddingLevel );
+	printf("%18s %05.f %2d %2d :",l_activityArray,
+	  g_InputBytePos,l_unclosedNodesCount, *o_paddingLevel );
 #endif
 
 	if( l_paddingString[0]==0 )
 	{
-	   l_padSubStr[0]='|'; 
-	   memset(l_padSubStr+1,' ', XXXX_PAD_CHARS-1); 
-	   l_padSubStr[XXXX_PAD_CHARS]='\0';
+            switch( g_commandLineParams[g_cmdLineParamIndex].executionMode )
+            {
+                 case XXXX_MODE_SMART_DECODE_PRINT :
+                 case XXXX_MODE_BASIC_DECODE_PRINT :
+	                   l_padSubStr[0]='|'; 
+	                   memset(l_padSubStr+1,' ', XXXX_PAD_CHARS-1); 
+	                   l_padSubStr[XXXX_PAD_CHARS]='\0';
 
-	   memset(l_paddingString, ' ', XXXX_PAD_CHARS );
-	   for ( i=1;i<XXXX_MAX_OPEN_NODES ; i++)
-		memcpy(l_paddingString + XXXX_PAD_CHARS*i, l_padSubStr, XXXX_PAD_CHARS );
+	                   memset(l_paddingString, ' ', XXXX_PAD_CHARS );
+	                   for ( i=1;i<XXXX_MAX_OPEN_NODES ; i++)
+		               memcpy(l_paddingString + XXXX_PAD_CHARS*i, l_padSubStr, XXXX_PAD_CHARS );
 
-	   l_padSubStr[0]='+';
-           memset(l_padSubStr+1,'-',XXXX_PAD_CHARS-1);
-	   l_padSubStr[XXXX_PAD_CHARS]='\0';
+	                   l_padSubStr[0]='+';
+                           memset(l_padSubStr+1,'-',XXXX_PAD_CHARS-1);
+	                   l_padSubStr[XXXX_PAD_CHARS]='\0';
 
-           memcpy(l_paddingString+XXXX_PAD_CHARS*(i-1),l_padSubStr, XXXX_PAD_CHARS);
-	}       
+                           memcpy(l_paddingString+XXXX_PAD_CHARS*(i-1),l_padSubStr, XXXX_PAD_CHARS);
+	                break;
+                 case XXXX_MODE_XML_DECODE_PRINT :
+			memset(l_paddingString, ' ', XXXX_PAD_CHARS*XXXX_MAX_OPEN_NODES );
+		        break;
+            }
+	}
 
-	/********************************************************************
-        memset(o_paddingStr, ' ', l_paddingLevel*XXXX_PAD_CHARS);
-	o_paddingStr[l_paddingLevel*XXXX_PAD_CHARS+1] = 0;
-        ********************************************************************/
 
-	memcpy(o_paddingStr, 
-		  l_paddingString + strlen(l_paddingString) - XXXX_PAD_CHARS* (l_paddingLevel) ,
-		  XXXX_PAD_CHARS * l_paddingLevel );
-        if(i_tagInfo.tagType == XXXX_CONSTRUCTED_TAG || l_paddingLevel==1)
-              o_paddingStr[(l_paddingLevel-1) * XXXX_PAD_CHARS] = '|';
+        switch( g_commandLineParams[g_cmdLineParamIndex].executionMode )
+        {
+                 case XXXX_MODE_SMART_DECODE_PRINT :
+                 case XXXX_MODE_BASIC_DECODE_PRINT :
+	                 memcpy(o_paddingStr, 
+		             l_paddingString + strlen(l_paddingString) - XXXX_PAD_CHARS * (*o_paddingLevel) ,
+		             XXXX_PAD_CHARS * (*o_paddingLevel) );
+                         if(i_tagInfo.tagType == XXXX_CONSTRUCTED_TAG || (*o_paddingLevel)==1)
+                             o_paddingStr[(*o_paddingLevel-1) * XXXX_PAD_CHARS] = '|';
+                         break;
+                 case XXXX_MODE_XML_DECODE_PRINT :
+			 if( i_tagInfo.tagType == XXXX_NULL_BYTE_TAG && i_lenInfo.lenType == XXXX_NULL_BYTE_LEN ) 
+			 {
+	                     memcpy(o_paddingStr, 
+		                 l_paddingString + strlen(l_paddingString) - 
+				     XXXX_PAD_CHARS * (*o_paddingLevel - 1) ,
+		                 XXXX_PAD_CHARS * (*o_paddingLevel - 1) );
+			     sprintf(o_paddingStr,"%s</%s>",o_paddingStr,
+			         g_asn1TagInfoArray[l_ucnl[l_unclosedNodesCount].ucnTagValue].tagName );
+                         }
+			 else
+			 {
+	                     memcpy(o_paddingStr, 
+		                 l_paddingString + strlen(l_paddingString) - XXXX_PAD_CHARS * (*o_paddingLevel) ,
+		                 XXXX_PAD_CHARS * (*o_paddingLevel) );
+			 }
+                         break;
+        }
+
 
 	if ( l_unclosedNodesCount > XXXX_MAX_OPEN_NODES || l_unclosedNodesCount < 0 )
 		rc = XXXX_BAD;
@@ -596,19 +674,16 @@ int     xxxx_PROCencodeAndWrite()
 	       l_tagLevel = (int) (l_readLinePos / XXXX_PAD_CHARS);
 	       l_typeOfInfoInLine =  l_lineReadFromFile[l_readLinePos - 1]; 
 
-	       printf("\n%s  %02d %c:", l_lineReadFromFile, l_tagLevel,l_typeOfInfoInLine);
-
 	       if( l_lineReadFromFile[l_readLinePos - 1]=='N' ) 
 	       {
 		   strcpy(l_tempStr,"0000");
-	           printf(" Null (%s)", l_tempStr);
 		   rc = xxxx_writeHexBytesToFile(l_tempStr);
 	           if(rc != XXXX_GOOD ) return rc;
                }
 
 	       if( l_lineReadFromFile[l_readLinePos - 1]=='T' ) 
 	       {
-	           /* Get Tag @ */
+	           /* Get Tag */
 	           rc = xxxx_GetTknPositionInString(l_lineReadFromFile,l_readLinePos,
 				     ' ', &l_readLinePos);
 	           l_startOfInfo=l_readLinePos+1;
@@ -619,7 +694,6 @@ int     xxxx_PROCencodeAndWrite()
 				     l_readLinePos - l_startOfInfo);
                    l_tempStr[l_readLinePos - l_startOfInfo] = 0;
 
-	           printf(" Tag (%s)", l_tempStr);
 		   rc = xxxx_writeHexBytesToFile(l_tempStr);
 	           if(rc != XXXX_GOOD ) return rc;
 
@@ -636,7 +710,6 @@ int     xxxx_PROCencodeAndWrite()
 		   rc=xxxx_GetLengthInHexBytes(l_tempNum, &l_lenInfo);
 	           if(rc != XXXX_GOOD ) return rc;
 
-	           printf(" Len :(%d-%s)", l_lenInfo.lenValue,l_lenInfo.lenBytes);
 		   rc = xxxx_writeHexBytesToFile(l_lenInfo.lenBytes);
 	           if(rc != XXXX_GOOD ) return rc;
 
@@ -656,7 +729,6 @@ int     xxxx_PROCencodeAndWrite()
 			rc = xxxx_GetContentInHexBytes(l_tempStr, l_typeOfContentInfo, &l_contentInfo);
 	                if(rc != XXXX_GOOD ) return rc;
 			
-	                printf(" Content :(%s)->(%s)", l_tempStr,l_contentInfo.contentBytes);
 		        rc = xxxx_writeHexBytesToFile(l_contentInfo.contentBytes);
 	                if(rc != XXXX_GOOD ) return rc;
 
@@ -667,7 +739,6 @@ int     xxxx_PROCencodeAndWrite()
 
 	return XXXX_GOOD;
 }
-
 
 /********************************************************************
 int    xxxx_GetTagInHexBytes(int i_tagValue, TagInfo_t *o_tagInfo)
@@ -680,19 +751,21 @@ int    xxxx_GetTagInHexBytes(int i_tagValue, TagInfo_t *o_tagInfo)
 	unsigned char l_tagByte;
 
 	o_tagInfo->tagValue = i_tagValue;
-	if ( g_commandLineParams[g_cmdLineParamIndex].executionMode == XXXX_MODE_SMART_ENCODE_WRITE ) 
+	switch( g_commandLineParams[g_cmdLineParamIndex].executionMode )
 	{
+	    case XXXX_MODE_SMART_ENCODE_WRITE:
 	        o_tagInfo->tagType = g_asn1TagInfoArray[i_tagValue].tagType;
 	        o_tagInfo->tagClass = g_asn1TagInfoArray[i_tagValue].tagClass;
 	        l_tagByte = (unsigned char )g_asn1TagInfoArray[i_tagValue].tagClass <<6;
 	        l_tagByte = l_tagByte | ((unsigned char )g_asn1TagInfoArray[i_tagValue].tagType <<5);
-        }
-	else
-	{
+		break;
+
+	    case XXXX_MODE_BASIC_ENCODE_WRITE:
 	        o_tagInfo->tagType = XXXX_PRIMITIVE_TAG; 
 	        o_tagInfo->tagClass = XXXX_APPLICATION_TAG;
 	        l_tagByte = (unsigned char )o_tagInfo->tagClass  <<6;
 		l_tagByte = l_tagByte | ((unsigned char )(o_tagInfo->tagType) <<5);
+		break;
         }
 
 	o_tagInfo->tagBytesCount=0;
@@ -784,6 +857,7 @@ int  xxxx_GetLengthInHexBytes(int i_lenValue, LenInfo_t *o_lenInfo )
 			for(l_bytesReq=0; l_256sMultiple < i_lenValue ; l_bytesReq++)
 				l_256sMultiple *= 256;
 
+                        if ( i_lenValue % 256 == 0 ) l_bytesReq++;
 			l_lenByte = l_bytesReq;
 			l_lenByte |= 0x80;
 			sprintf(o_lenInfo->lenBytes+o_lenInfo->lenBytesCount*2,
@@ -896,16 +970,12 @@ int  xxxx_writeHexBytesToFile(char *i_hexByteString)
     l_lenOfOutputBuffer =  strlen(i_hexByteString)/2;
     l_byteStream[0]=NULL;
 
-    printf("=>%d(",l_lenOfOutputBuffer);
-
     for(i=0;i< l_lenOfOutputBuffer;i++)
     {
 	 tmpStr[0]=i_hexByteString[2*i]; 
 	 tmpStr[1]=i_hexByteString[2*i+1]; 
 	 l_byteStream[i] = (unsigned char) strtoul(tmpStr,NULL,16);
-	 printf("%02X",(unsigned char) l_byteStream[i]);
     }
-    printf(")");
 
     rc = fwrite(l_byteStream, l_lenOfOutputBuffer,1, fpO);
     if ( rc != l_lenOfOutputBuffer ) 
