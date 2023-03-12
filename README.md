@@ -49,7 +49,7 @@ The application included supports TAP3.12, TAP3.11,TAP3.10,TAP3.9 & RAP 1.2.
 If you need EditAsn1 to work with create asn1TagInfo.h with information about your ASN.1 file and compile again
 
 ## Sample output (TAP3 Notification File , using -d Option)
-```sh
+```
 $ ./EditAsn1 -d CDDEUD1AUTPT44999
 T<Notification 62> L<0> 
 |---T<Sender 5F8144> L<5> V<AUTPT>
