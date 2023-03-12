@@ -23,7 +23,7 @@ This application does not need OSS utilities & has been used extensively to edit
 
 ## Command line options
 The application supports 4 options, just run the application without any parameter to see the options
-```sh
+```
 $ EditAsn1
 Usage:
         Smart Decode for TAP3     : EditAsn1v15 -d <ASN.1 File>
@@ -78,7 +78,7 @@ T<Notification 62> L<0>
 
 ## Sample Output ( For CMG file, using -D option)
 
-```sh 
+``` 
 $ ./EditAsn1 -D CMG_0001.DAT
 T< 30> L<0> 
 |---T< A0> L<14> 
