@@ -14,10 +14,12 @@ Unprintable values are written in Hex, and are enclosed in Vx<...>
 
 This application does not need OSS utilities & has been used extensively to edit EDRs and create test files.
 
-## Compilation
+## Installation & Compilation
   Use C compiler, ensure that the .c & .h files are in the same folder
   
 ```sh
+  $ git clone https://github.com/arun-ks/EditAsn1.git
+  $ cd EditAsn1
   $ cc EditAsn1.c -o EditAsn1
 ```
 
